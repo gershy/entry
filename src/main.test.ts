@@ -1,5 +1,6 @@
 import { assertEqual, testRunner } from '../build/utils.test.ts';
 import './main.ts';
+import { getRootLogger } from './main.ts';
 
 // Type testing
 (async () => {
@@ -16,7 +17,16 @@ testRunner([
   
   { name: 'not implemented', fn: async () => {
     
-    // TODO: Implement!
+    const logger = getRootLogger({ name: 'test' });
+    logger.log({
+      this: {
+        is: {
+          my: {
+            crazyCoolData: Buffer.alloc(20)
+          }
+        }
+      }
+    } as any);
     
   }}
   
