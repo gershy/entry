@@ -19,6 +19,7 @@ testRunner([
     
     const logger = getRootLogger({ name: 'test' });
     logger.log({
+      $$: 'haha!',
       this: {
         is: {
           my: {
@@ -26,7 +27,7 @@ testRunner([
           }
         }
       }
-    } as any);
+    });
     
   }}
   
