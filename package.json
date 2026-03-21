@@ -1,6 +1,6 @@
 {
   "name": "@gershy/entry",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "TODO",
   "keywords": [
     "TODO"
@@ -24,7 +24,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@gershy/logger": "^0.0.7"
+    "@gershy/logger": "^0.0.8"
   },
   "type": "module",
   "files": [
