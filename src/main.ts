@@ -1,5 +1,17 @@
-import { isCls, getClsName, inCls, skip } from '@gershy/clearing';
+import '@gershy/clearing';
 import Logger from '@gershy/logger';
+
+const { isCls, getClsName, inCls, skip } = cl;
+const at:      typeof cl.at      = cl.at;
+const count:   typeof cl.count   = cl.count;
+const map:     typeof cl.map     = cl.map;
+const has:     typeof cl.has     = cl.has;
+const indent:  typeof cl.indent  = cl.indent;
+const limn:    typeof cl.limn    = cl.limn;
+const empty:   typeof cl.empty   = cl.empty;
+const toArr:   typeof cl.toArr   = cl.toArr;
+const mapk:    typeof cl.mapk    = cl.mapk;
+const padTail: typeof cl.padTail = cl.padTail;
 
 const modMapping = {
   

@@ -1,6 +1,6 @@
 {
   "name": "@gershy/entry",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "TODO",
   "keywords": [
     "TODO"
@@ -16,7 +16,7 @@
   "homepage": "https://github.com/gershy/entry#readme",
   "license": "ISC",
   "peerDependencies": {
-    "@gershy/clearing": "^0.0.29"
+    "@gershy/clearing": "^0.0.36"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
@@ -24,7 +24,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@gershy/logger": "^0.0.4"
+    "@gershy/logger": "^0.0.7"
   },
   "type": "module",
   "files": [
