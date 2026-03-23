@@ -10,6 +10,7 @@ const indent:  typeof cl.indent  = cl.indent;
 const limn:    typeof cl.limn    = cl.limn;
 const empty:   typeof cl.empty   = cl.empty;
 const toArr:   typeof cl.toArr   = cl.toArr;
+const slice:   typeof cl.slice   = cl.slice;
 const mapk:    typeof cl.mapk    = cl.mapk;
 const padTail: typeof cl.padTail = cl.padTail;
 
@@ -265,12 +266,13 @@ export type GetRootLoggerArgs = {
   name?: string,
   objDepth?: number,
   lineWidth?: number,
+  maxStrLength?: number,
   stringFormat?: 'multiline' | 'inline',
   filter?: (ctx: { $: string } & Obj<any>) => boolean
 };
 export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
   
-  return state.logger ??= new Logger(opts.name ?? '', {}, skip, ctx => {
+  return state.logger ??= new Logger(opts.name ?? '', opts[slice]([ 'maxStrLength' ]), skip, ctx => {
     
     const { $: domain, ...args } = ctx;
     if (opts?.filter && !opts.filter(ctx)) return;
