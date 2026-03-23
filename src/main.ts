@@ -266,13 +266,13 @@ export type GetRootLoggerArgs = {
   name?: string,
   objDepth?: number,
   lineWidth?: number,
-  maxStrLength?: number,
+  maxStrLen?: number,
   stringFormat?: 'multiline' | 'inline',
   filter?: (ctx: { $: string } & Obj<any>) => boolean
 };
 export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
   
-  return state.logger ??= new Logger(opts.name ?? '', opts[slice]([ 'maxStrLength' ]), skip, ctx => {
+  return state.logger ??= new Logger(opts.name ?? '', opts[slice]([ 'maxStrLen' ]), skip, ctx => {
     
     const { $: domain, ...args } = ctx;
     if (opts?.filter && !opts.filter(ctx)) return;
