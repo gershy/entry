@@ -42,8 +42,9 @@ const ansi = {
 };
 
 type FormatArgs = {
-  ansiSet?: (...args: any[]) => string,
-  ansiRem?: (str: string) => string,
+  ansi?: typeof ansi,
+  // ansiSet?: (...args: any[]) => string,
+  // ansiRem?: (str: string) => string,
   indentSize?: number,
   stringFormat?: 'inline' | 'multiline',
   objDepth?: number,  // How many levels to recurse into objects
@@ -53,7 +54,9 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
   
   // Converts any value to a human-readable string
   
-  const { ansiSet=ansi.set, ansiRem=ansi.rem, indentSize=2, stringFormat='multiline', objDepth = 7, lineWidth = 100 } = opts;
+  const { ansi: ansiUtil = ansi, indentSize=2, stringFormat='multiline', objDepth = 7, lineWidth = 100 } = opts;
+  const ansiSet = ansiUtil.set;
+  const ansiRem = ansiUtil.rem;
   const pfxLen = pfx.length;
   const bold = (str: string) => ansiSet(str, 'bold');
   
@@ -262,6 +265,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
 const log = global['cons' + 'ole'].log;
 const state: { logger: null | Logger } = { logger: null };
 export type GetRootLoggerArgs = {
+  ansi?: boolean,
   out?: (str: string) => void,
   name?: string,
   objDepth?: number,
@@ -271,6 +275,13 @@ export type GetRootLoggerArgs = {
   filter?: (ctx: { $: string } & Obj<any>) => boolean
 };
 export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
+  
+  const formatOpts = {
+    ...opts,
+    ansi: opts.ansi
+      ? ansi
+      : { set: (str: string) => str, rem: (str: string) => str }
+  };
   
   return state.logger ??= new Logger(opts.name ?? '', opts[slice]([ 'maxStrLen' ]), skip, ctx => {
     
@@ -291,7 +302,7 @@ export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
         
       })();
 
-      const formattedBody = body[empty]() ? null : format(body, opts);
+      const formattedBody = body[empty]() ? null : format(body, formatOpts);
       const formattedMsg =  (() => {
         // The message is formatted slightly differently - if it's a string, it's used raw
         if (!msg) return null;

@@ -10,24 +10,30 @@ import { getRootLogger } from './main.ts';
   type Tests = {
     1: Enforce<{ x: 'y' }, { x: 'y' }>,
   };
+  if (0) ((v?: Tests) => void 0)();
   
 })();
 
 testRunner([
   
-  { name: 'not implemented', fn: async () => {
+  { name: 'basic test', fn: async () => {
     
-    const logger = getRootLogger({ name: 'test' });
-    logger.log({
-      $$: 'haha!',
-      this: {
-        is: {
-          my: {
-            crazyCoolData: Buffer.alloc(20)
+    assertEqual(null, null);
+    
+    const result = await new Promise(rsv => {
+      const logger = getRootLogger({ name: 'test', ansi: false, out: str => rsv(str) });
+      logger.log({
+        $$: 'haha!',
+        this: {
+          is: {
+            my: {
+              crazyCoolData: Buffer.alloc(20)
+            }
           }
         }
-      }
+      });
     });
+    assertEqual(result, `[test.haha!] { this: { is: { my: { crazyCoolData: 'Buffer(...)' } } } }`);
     
   }}
   
