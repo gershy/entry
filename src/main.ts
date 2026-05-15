@@ -286,7 +286,7 @@ export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
   return state.logger ??= new Logger(opts.name ?? '', opts[slice]([ 'maxStrLen' ]), skip, ctx => {
     
     const { $: domain, ...args } = ctx;
-    if (opts?.filter && !opts.filter(ctx)) return;
+    if (opts?.filter && !opts.filter(ctx as any)) return;
     
     try {
       
