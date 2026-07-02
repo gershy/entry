@@ -48,16 +48,15 @@ type FormatArgs = {
   indentSize?: number,
   stringFormat?: 'inline' | 'multiline',
   objDepth?: number,  // How many levels to recurse into objects
-  lineWidth?: number  // How wide a line can be
+  maxLineLen?: number  // How wide a line can be
 };
-const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, pfx = '', seen = new Map()): string => {
+const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0, pfx = '', seen = new Map()): string => {
   
   // Converts any value to a human-readable string
   
-  const { ansi: ansiUtil = ansi, indentSize=2, stringFormat='multiline', objDepth = 7, lineWidth = 100 } = opts;
+  const { ansi: ansiUtil = ansi, indentSize=2, stringFormat='multiline', objDepth = 7, maxLineLen = 100 } = opts;
   const ansiSet = ansiUtil.set;
   const ansiRem = ansiUtil.rem;
-  const pfxLen = pfx.length;
   const bold = (str: string) => ansiSet(str, 'bold');
   
   if (val === undefined) return ansiSet('undefined', 'green');
@@ -70,7 +69,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
   
   if (isCls(val, String)) {
     
-    const maxW = Math.max(8, lineWidth - pfxLen - d * indentSize - 1); // Subtract 1 for the trailing ","
+    const maxW = Math.max(8, maxLineLen - pfx.length - d * indentSize - 1); // Subtract 1 for the trailing ","
     
     if (stringFormat === 'inline' || !val[has]('\n')) {
       
@@ -91,7 +90,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
         [map](ln => ansiSet(ln.length <= mw ? ln : (ln.slice(0, mw - 1) + '\u2026'), 'green'));
       
       const indentStr = ansiSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
-      return `"""\n${lines.join('\n')[indent](indentStr)}\n"""`;
+      return `"""\n${lines.join('\n')[indent](indentStr + '| ')}\n"""`;
       
     }
     
@@ -126,7 +125,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
     
     let str = 'Fn: ' + val.toString().split('\n')[map](ln => ln.trim() ?? skip).join(' ').replace(/[ ]+/g, ' ');
     
-    const maxW = Math.max(8, lineWidth - pfxLen - d * indentSize - 1); // Subtract 1 for a possible trailing ","
+    const maxW = Math.max(8, maxLineLen - pfx.length - d * indentSize - 1); // Subtract 1 for a possible trailing ","
     if (str.length > maxW) str = str.slice(0, maxW - 1) + '\u2026';
     
     str = ansiSet(str, 'blue');
@@ -167,7 +166,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
       else                    return `'${k.replaceAll(`'`, `\\'`)}'`;
     };
     const keyLen = Math.max(...val[toArr]((v, k) => slottableKey(k).length));
-    const maxOneLineValueLen = lineWidth - (d * indentSize) - (keyLen + 2); // Remove space from indentation and key; `+ 2` is for ": "
+    const maxOneLineValueLen = maxLineLen - (d * indentSize) - (keyLen + ': '.length); // Remove space from indentation and key
     
     const str = (() => {
       
@@ -200,7 +199,10 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
         
       });
       
-      // Using `Math.max` means there's no sorting preference for items less than 10 chars long
+      // Using `Math.max` means there's no sorting preference for items less than 10 chars long;
+      // trying to balance:
+      // 1. Not unnecessarily disrupting object key order
+      // 2. Nonetheless, showing cognitively simple items earlier
       const indentStr = ansiSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
       const sortScore = v => {
         
@@ -240,7 +242,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
       const oneLine = `${bold('[')} ${formatted.join(bold(',') + ' ')} ${bold(']')}`;
       const canOneLine = true
         && !oneLine[has]('\n')
-        && ansiRem(oneLine).length < (lineWidth - d * indentSize);
+        && ansiRem(oneLine).length < (maxLineLen - d * indentSize);
       if (canOneLine) return oneLine;
       
       const indentStr = ansiSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
@@ -262,14 +264,12 @@ const format = (val, opts: FormatArgs = { objDepth: 7, lineWidth: 100 }, d = 0, 
   
 };
 
-const log = global['cons' + 'ole'].log;
-const state: { logger: null | Logger } = { logger: null };
 export type GetRootLoggerArgs = {
   ansi?: boolean,
   out?: (str: string) => void,
   name?: string,
   objDepth?: number,
-  lineWidth?: number,
+  maxLineLen?: number,
   maxStrLen?: number,
   stringFormat?: 'multiline' | 'inline',
   filter?: (ctx: { $: string } & Obj<any>) => boolean
@@ -277,16 +277,19 @@ export type GetRootLoggerArgs = {
 export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
   
   const formatOpts = {
+    name: '',
+    filter: () => true,
+    out: global['cons' + 'ole'].log,
     ...opts,
     ansi: opts.ansi
       ? ansi
       : { set: (str: string) => str, rem: (str: string) => str }
   };
   
-  return state.logger ??= new Logger(opts.name ?? '', opts[slice]([ 'maxStrLen' ]), skip, ctx => {
+  return new Logger(formatOpts.name, opts[slice]([ 'maxStrLen' ]), skip, ctx => {
     
     const { $: domain, ...args } = ctx;
-    if (opts?.filter && !opts.filter(ctx as any)) return;
+    if (!formatOpts.filter(ctx as any)) return;
     
     try {
       
@@ -307,16 +310,16 @@ export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
         // The message is formatted slightly differently - if it's a string, it's used raw
         if (!msg) return null;
         if (isCls(msg, String)) return msg;
-        return format(msg);
+        return format(msg, formatOpts);
       })();
       
       const content = [ formattedMsg, formattedBody ][map](v => v ?? skip).join('\n');
       if (!content.trim()) return;
-      (opts.out ?? log)(content[indent](`[${(domain as any).$}] `), '\n');
+      formatOpts.out(content[indent](`[${(domain as any).$}] `) + '\n');
       
     } catch(err) {
       
-      (opts.out ?? log)('FATAL', err);
+      (opts.out ?? global['cons' + 'ole'].log)('FATAL', err);
       process.exit(0);
       
     }
