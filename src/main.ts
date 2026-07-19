@@ -286,10 +286,11 @@ export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
       : { set: (str: string) => str, rem: (str: string) => str }
   };
   
-  return new Logger(formatOpts.name, opts[slice]([ 'maxStrLen' ]), skip, ctx => {
+  return new Logger(formatOpts.name, {}, opts[slice]([ 'maxStrLen' ]), ctx => {
+    
+    if (!formatOpts.filter(ctx as any)) return;
     
     const { $: domain, ...args } = ctx;
-    if (!formatOpts.filter(ctx as any)) return;
     
     try {
       
@@ -305,7 +306,7 @@ export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
         
       })();
 
-      const formattedBody = body[empty]() ? null : format(body, formatOpts);
+      const formattedBody = format(body, formatOpts); // Previously had: `body[empty]() ? null : format(body, formatOpts);` but it was eliminating a lot of "launch" logs
       const formattedMsg =  (() => {
         // The message is formatted slightly differently - if it's a string, it's used raw
         if (!msg) return null;
@@ -315,6 +316,7 @@ export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
       
       const content = [ formattedMsg, formattedBody ][map](v => v ?? skip).join('\n');
       if (!content.trim()) return;
+      
       formatOpts.out(content[indent](`[${(domain as any).$}] `) + '\n');
       
     } catch(err) {
