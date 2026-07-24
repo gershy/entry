@@ -1,5 +1,6 @@
 import '@gershy/clearing';
 import Logger from '@gershy/logger';
+import codecParse, { type Codec } from '@gershy/util-codec-parse';
 
 const { isCls, getClsName, inCls, skip } = cl;
 const at:      typeof cl.at      = cl.at;
@@ -10,7 +11,6 @@ const indent:  typeof cl.indent  = cl.indent;
 const limn:    typeof cl.limn    = cl.limn;
 const empty:   typeof cl.empty   = cl.empty;
 const toArr:   typeof cl.toArr   = cl.toArr;
-const slice:   typeof cl.slice   = cl.slice;
 const mapk:    typeof cl.mapk    = cl.mapk;
 const padTail: typeof cl.padTail = cl.padTail;
 
@@ -29,6 +29,7 @@ const modMapping = {
   italic:    '\u001b[3;22m',
   underline: '\u001b[4;22m',
   
+  // Note this one is mostly for reference if we want to support lower-level ansi controls later
   rgbRed:    '\u001b[38;2;255;0;0m', // Must be "[38,2,R;G;Bm]" where R, G, B are 0-255 colour values
   
   reset:     '\u001b[0m'
@@ -41,31 +42,29 @@ const ansi = {
   rem: (str: string) => str.replace(/\u{1b}\[[^a-zA-Z]+[a-zA-Z]/ug, '')
 };
 
-type FormatArgs = {
-  ansi?: typeof ansi,
-  // ansiSet?: (...args: any[]) => string,
-  // ansiRem?: (str: string) => string,
+type FormatInp = {
+  inBandFormatter?: typeof ansi, // In-band (embedded string) formatter
   indentSize?: number,
   stringFormat?: 'inline' | 'multiline',
   objDepth?: number,  // How many levels to recurse into objects
   maxLineLen?: number  // How wide a line can be
 };
-const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0, pfx = '', seen = new Map()): string => {
+const format = (val, opts: FormatInp = { objDepth: 7, maxLineLen: 100 }, d = 0, pfx = '', seen = new Map()): string => {
   
   // Converts any value to a human-readable string
   
-  const { ansi: ansiUtil = ansi, indentSize=2, stringFormat='multiline', objDepth = 7, maxLineLen = 100 } = opts;
-  const ansiSet = ansiUtil.set;
-  const ansiRem = ansiUtil.rem;
-  const bold = (str: string) => ansiSet(str, 'bold');
+  const { inBandFormatter: bFmt = ansi, indentSize=2, stringFormat='multiline', objDepth = 7, maxLineLen = 100 } = opts;
+  const bFmtSet = bFmt.set;
+  const bFmtRem = bFmt.rem;
+  const bold = (str: string) => bFmtSet(str, 'bold');
   
-  if (val === undefined) return ansiSet('undefined', 'green');
-  if (val === null) return ansiSet('null', 'green');
-  if (val !== val) return ansiSet('nan', 'green');
+  if (val === undefined) return bFmtSet('undefined', 'green');
+  if (val === null) return bFmtSet('null', 'green');
+  if (val !== val) return bFmtSet('nan', 'green');
   
-  if (isCls(val, Number)) return ansiSet(val.toString(10), 'green');
-  if (isCls(val, Boolean)) return ansiSet(val ? 'T' : 'F', 'green');
-  if (isCls(val, Buffer)) return ansiSet(`Buffer { length: ${val.length} }`, 'green');
+  if (isCls(val, Number)) return bFmtSet(val.toString(10), 'green');
+  if (isCls(val, Boolean)) return bFmtSet(val ? 'T' : 'F', 'green');
+  if (isCls(val, Buffer)) return bFmtSet(`Buffer { length: ${val.length} }`, 'green');
   
   if (isCls(val, String)) {
     
@@ -77,7 +76,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0,
       // terminals as exactly 1 inline character
       let inline = val.replaceAll('\n', '\\n').replaceAll(/[\u0007-\u000f]/g, '');
       if (inline.length > maxW) inline = inline.slice(0, maxW - 1) + '\u2026';
-      return ansiSet(`'${inline}'`, 'green');
+      return bFmtSet(`'${inline}'`, 'green');
       
     } else if (stringFormat === 'multiline') {
       
@@ -87,16 +86,16 @@ const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0,
       // value permitted by the break in the range in the following regex)
       const lines = val.replaceAll(/[\u0007-\u0009\u000b-\u000f]/g, '')
         .split('\n')
-        [map](ln => ansiSet(ln.length <= mw ? ln : (ln.slice(0, mw - 1) + '\u2026'), 'green'));
+        [map](ln => bFmtSet(ln.length <= mw ? ln : (ln.slice(0, mw - 1) + '\u2026'), 'green'));
       
-      const indentStr = ansiSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
+      const indentStr = bFmtSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
       return `"""\n${lines.join('\n')[indent](indentStr + '| ')}\n"""`;
       
     }
     
   }
   
-  if (d > objDepth) return ansiSet('<limit>', 'red');
+  if (d > objDepth) return bFmtSet('<limit>', 'red');
   
   if (seen.has(val)) return seen.get(val);
   
@@ -128,7 +127,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0,
     const maxW = Math.max(8, maxLineLen - pfx.length - d * indentSize - 1); // Subtract 1 for a possible trailing ","
     if (str.length > maxW) str = str.slice(0, maxW - 1) + '\u2026';
     
-    str = ansiSet(str, 'blue');
+    str = bFmtSet(str, 'blue');
     
     seen.set(val, str);
     return str;
@@ -185,7 +184,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0,
       
       const canOneLine = true
         && !oneLine[has]('\n')
-        && ansiRem(oneLine).length < maxOneLineValueLen;
+        && bFmtRem(oneLine).length < maxOneLineValueLen;
       if (canOneLine) return oneLine;
       
       const multiLineItems = formatted[toArr]((v, k) => {
@@ -194,7 +193,7 @@ const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0,
         let padding = '';
         if (paddingAmt) padding += ' ';
         padding += '-'.repeat(Math.max(paddingAmt - 1, 0));
-        const paddedKey = k + ansiSet(padding, 'subtle');
+        const paddedKey = k + bFmtSet(padding, 'subtle');
         return `${paddedKey}${bold(':')} ${v}`;
         
       });
@@ -203,10 +202,10 @@ const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0,
       // trying to balance:
       // 1. Not unnecessarily disrupting object key order
       // 2. Nonetheless, showing cognitively simple items earlier
-      const indentStr = ansiSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
+      const indentStr = bFmtSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
       const sortScore = v => {
         
-        const noAnsi = ansiRem(v);
+        const noAnsi = bFmtRem(v);
         const numLines = (noAnsi.match(/\n/g) ?? []).length + 1;
         
         // The first line of `noAnsi` embeds `keyLen` chars and ": "
@@ -242,10 +241,10 @@ const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0,
       const oneLine = `${bold('[')} ${formatted.join(bold(',') + ' ')} ${bold(']')}`;
       const canOneLine = true
         && !oneLine[has]('\n')
-        && ansiRem(oneLine).length < (maxLineLen - d * indentSize);
+        && bFmtRem(oneLine).length < (maxLineLen - d * indentSize);
       if (canOneLine) return oneLine;
       
-      const indentStr = ansiSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
+      const indentStr = bFmtSet('\u00a6', 'subtle') + ' '.repeat(indentSize - 1);
       const multiLine = formatted[map](v => v[indent](indentStr)).join(bold(',') + '\n');
       return `${bold('[')}\n${multiLine}\n${bold(']')}`;
       
@@ -258,74 +257,129 @@ const format = (val, opts: FormatArgs = { objDepth: 7, maxLineLen: 100 }, d = 0,
   
   const formName = getClsName(val);
   seen.set(val, `<cyc> ${formName}(...)`);
-  const str = `${ansiSet(formName, 'blue')} ${format({ ...val }, opts, d, `${formName} `, seen)}`;
+  const str = `${bFmtSet(formName, 'blue')} ${format({ ...val }, opts, d, `${formName} `, seen)}`;
   seen.set(val, str);
   return str;
   
 };
 
-export type GetRootLoggerArgs = {
-  ansi?: boolean,
-  out?: (str: string) => void,
-  name?: string,
-  objDepth?: number,
-  maxLineLen?: number,
-  maxStrLen?: number,
-  stringFormat?: 'multiline' | 'inline',
-  filter?: (ctx: { $: string } & Obj<any>) => boolean
+export type EntryInp<Cdc extends Codec.Reg> = {
+  name: string,
+  codec?: Cdc,
+  inp?: Obj<any>,
+  topLevelHandling?: boolean, // Handle top-level warnings and errors; call `process.exit` when `fn` resolves
+  log?: {
+    write?: (str: string) => void,
+    format?: FormatInp & { ansi?: boolean, maxStrLen?: number },
+    filter?: (ctx: { $: string } & Obj<any>) => boolean
+  },
+  fn: (logger: Logger, inp: Codec.Out<Cdc>) => Promise<any>
 };
-export const getRootLogger = (opts: GetRootLoggerArgs = {}) => {
+export const entry = <Cdc extends Codec.Reg>(inp: EntryInp<Cdc>) => {
   
-  const formatOpts = {
-    name: '',
-    filter: () => true,
-    out: global['cons' + 'ole'].log,
-    ...opts,
-    ansi: opts.ansi
-      ? ansi
-      : { set: (str: string) => str, rem: (str: string) => str }
-  };
+  // Handle top-level errors and warnings
+  if (inp.topLevelHandling ?? true) (() => {
+    
+    if (process[Symbol.for('@gershy/entry/dedup')]) throw Error('entry conflict')[cl.mod]({ note: 'The @gershy/entry `entry` function should only be called once with { topLevelHandling: true } per process' });
+    process[Symbol.for('@gershy/entry/dedup')] = true;
+    
+    // Handle top-level errors
+    const topLevelHandler = err => {
+      const sym = Symbol.for('@gershy/clearing/err/suppressed');
+      if (err[sym]) return;
+      throw err;
+    };
+    process.on('uncaughtException', topLevelHandler);
+    process.on('unhandledRejection', topLevelHandler);
+    
+    const ignoredWarningCodes = new Set<string>([ 'undici-ws'[cl.upper]() ]);
+    const origEmitWarning: any = process.emitWarning;
+    (process as any).emitWarning = (...inp: [ string, { code: string } ]) => {
+      if (ignoredWarningCodes.has(inp[1]?.code)) return;
+      origEmitWarning.call(process, ...inp);
+    };
+    
+  })();
   
-  return new Logger(formatOpts.name, {}, opts[slice]([ 'maxStrLen' ]), ctx => {
+  const logger = (() => {
     
-    if (!formatOpts.filter(ctx as any)) return;
+    const logInp = inp.log ?? {};
+    const {
+      write = globalThis['cons' + 'ole'].log,
+      filter = () => true,
+      format: formatInpRaw = {}
+    } = logInp;
     
-    const { $: domain, ...args } = ctx;
+    const {
+      stringFormat = 'multiline',
+      objDepth = 7,
+      maxLineLen = 150,
+      maxStrLen = 500,
+      indentSize = 2,
+      ansi: useAnsi = true
+    } = formatInpRaw;
     
-    try {
+    const formatInp: Required<FormatInp> = {
+      stringFormat,
+      objDepth,
+      maxLineLen,
+      indentSize,
+      inBandFormatter: useAnsi ? ansi : { set: (str: string) => str, rem: (str: string) => str }
+    };
+    
+    return new Logger('', {}, { maxStrLen }, ctx => {
+      
+      if (!filter(ctx as any)) return;
+      
+      const { $: domain, ...inp } = ctx;
       
       const { msg, body } = (() => {
         
         // We detect a "message" if the "msg" key is a String, or "msg" is the only property
-        if (args[at]('msg') && (isCls(args.msg, String) || args[count]() === 1)) {
-          const { msg, ...body } = args;
+        if (inp[at]('msg') && (isCls(inp.msg, String) || inp[count]() === 1)) {
+          const { msg, ...body } = inp;
           return { msg, body } as { msg: Json, body: Obj };
         }
         
-        return { msg: null, body: args };
+        return { msg: null, body: inp };
         
       })();
-
-      const formattedBody = format(body, formatOpts); // Previously had: `body[empty]() ? null : format(body, formatOpts);` but it was eliminating a lot of "launch" logs
+  
+      const formattedBody = format(body, formatInp);
       const formattedMsg =  (() => {
         // The message is formatted slightly differently - if it's a string, it's used raw
         if (!msg) return null;
         if (isCls(msg, String)) return msg;
-        return format(msg, formatOpts);
+        return format(msg, formatInp);
       })();
       
       const content = [ formattedMsg, formattedBody ][map](v => v ?? skip).join('\n');
       if (!content.trim()) return;
       
-      formatOpts.out(content[indent](`[${(domain as any).$}] `) + '\n');
+      write(content[indent](`[${(domain as any).$}] `) + '\n');
       
-    } catch(err) {
-      
-      (opts.out ?? global['cons' + 'ole'].log)('FATAL', err);
-      process.exit(0);
-      
-    }
+    });
     
-  });
+    
+  })();
+  return logger.scope(inp.name ?? '', {}, async logger => {
+    
+    const codec = inp.codec;
+    const parsedInp = !codec ? null : logger.scope('inp', {}, logger => {
+      
+      const rawInp = process.argv.filter(v => v[0] === '{')
+        .map(v => eval(`(${v})`))
+        .reduce((m, v) => m[cl.merge](v), {});
+      
+      const codecInp = {}
+        [cl.merge](inp.inp ?? {})
+        [cl.merge](rawInp);
+      return codecParse(codec!, codecInp);
+      
+    });
+    
+    return inp.fn(logger, parsedInp as any);
+    
+  }).finally(() => (inp.topLevelHandling ?? true) && process.exit(0)); // TODO: detect and report open async processes??
   
 };

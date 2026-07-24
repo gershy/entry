@@ -1,6 +1,7 @@
-import { assertEqual, testRunner } from '../build/utils.test.ts';
+import type Logger from '@gershy/logger';
+import { assertEqual, cmpReg, testRunner } from '../build/utils.test.ts';
 import './main.ts';
-import { getRootLogger } from './main.ts';
+import { entry, type EntryInp } from './main.ts';
 
 // Type testing
 (async () => {
@@ -14,12 +15,30 @@ import { getRootLogger } from './main.ts';
   
 })();
 
+const logTest = async (opts: Omit<EntryInp<any>, 'name' | 'codec' | 'fn'>, fn: (logger: Logger) => any): Promise<string[]> => {
+  
+  const logs: string[] = [];
+  const debugArgs = {
+    topLevelHandling: false,
+    log: {
+      write: str => logs.push(str),
+      format: {
+        ansi: false
+      }
+    }
+  }[cl.merge](opts);
+  await entry({ name: 'test', ...debugArgs, fn: async logger => fn(logger) });
+  
+  return logs;
+  
+};
+
 testRunner([
   
   { name: 'basic', fn: async () => {
     
-    const result = await new Promise(rsv => {
-      const logger = getRootLogger({ name: 'test', ansi: false, out: str => rsv(str) });
+    const logs = await logTest({}, async logger => {
+      
       logger.log({
         $$: 'haha',
         this: {
@@ -30,75 +49,62 @@ testRunner([
           }
         }
       });
+      
     });
-    assertEqual(result, `[test.haha] { this: { is: { my: { crazyCoolData: 'Buffer(...)' } } } }\n`);
+    
+    assertEqual(logs, [
+      `[test.launch] {}\n`,
+      `[test.haha] { this: { is: { my: { crazyCoolData: 'Buffer(...)' } } } }\n`,
+      [ cmpReg, /\[test.accept\] \{ ms: [0-9]+ \}\n/ ]
+    ]);
     
   }},
   { name: 'mutliline', fn: async () => {
     
-    const result = await new Promise(rsv => {
-      const logger = getRootLogger({ name: 'test', ansi: false, out: rsv, maxLineLen: 20, maxStrLen: 1000 });
-      logger.log({ $$: 'haha', x: BigInt('1'.repeat(100)) });
+    const logs = await logTest({}, async logger => {
+      logger.log({ $$: 'haha', x: BigInt('1'.repeat(100)) })
     });
     
-    assertEqual(result, String[cl.baseline](`
-      | [test.haha] {
-      | [test.haha] ¦ x: 'BigInt(...)'
-      | [test.haha] }
-      | 
-    `));
+    assertEqual(logs, [
+      `[test.launch] {}\n`,
+      `[test.haha] { x: 'BigInt(...)' }\n`,
+      [ cmpReg, /\[test.accept\] \{ ms: [0-9]+ \}\n/ ]
+    ]);
     
   }},
   { name: 'mutliline2', fn: async () => {
     
-    // TODO: The logger output here based on `maxLineLen` and `maxStrLen` is inconsistent and
-    // unexpected; needs to be debugged. Most stable approach would be to change the expected value
-    // here to be precisely, to-the-character, what we want, and getting the code to produce that.
+    const logs = await logTest({ log: { format: { maxStrLen: 25 } } }, logger => logger.log({
+      $$: 'haha',
+      x: { y: 'x'.repeat(100) },
+      xx: 'x'.repeat(100),
+      xxx: BigInt('1'.repeat(100)),
+      xxxxx: { y: 'x'.repeat(100) },
+      a: { b: { c: 'x'.repeat(100) } },
+      h: { i: { j: [ 'x'.repeat(100) ] } },
+      lines: 'xxx\nxxx\nxxx'
+    }));
     
-    const result = await new Promise(rsv => {
-      const logger = getRootLogger({ name: 'test', ansi: false, out: rsv, maxLineLen: 20, maxStrLen: 1000 });
-      logger.log({
-        $$: 'haha',
-        x: { y: 'x'.repeat(100) },
-        xx: 'x'.repeat(100),
-        xxx: BigInt('1'.repeat(100)),
-        xxxxx: { y: 'x'.repeat(100) },
-        a: { b: { c: 'x'.repeat(100) } },
-        h: { i: { j: [ 'x'.repeat(100) ] } },
-        lines: 'xxx\nxxx\nxxx'
-      });
-    });
-    
-    assertEqual(result, String[cl.baseline](`
-      | [test.haha] {
-      | [test.haha] ¦ x ---: {
-      | [test.haha] ¦ ¦ y: 'xxxxxxxxxxx…'
-      | [test.haha] ¦ },
-      | [test.haha] ¦ xxxxx: {
-      | [test.haha] ¦ ¦ y: 'xxxxxxxxxxx…'
-      | [test.haha] ¦ },
-      | [test.haha] ¦ xx --: 'xxxxxxxxx…',
-      | [test.haha] ¦ xxx -: 'BigInt(..…',
-      | [test.haha] ¦ lines: """
-      | [test.haha] ¦ ¦ | xxx
-      | [test.haha] ¦ ¦ | xxx
-      | [test.haha] ¦ ¦ | xxx
-      | [test.haha] ¦ """,
-      | [test.haha] ¦ a ---: {
-      | [test.haha] ¦ ¦ b: {
-      | [test.haha] ¦ ¦ ¦ c: 'xxxxxxxxx…'
-      | [test.haha] ¦ ¦ }
-      | [test.haha] ¦ },
-      | [test.haha] ¦ h ---: {
-      | [test.haha] ¦ ¦ i: {
-      | [test.haha] ¦ ¦ ¦ j: [
-      | [test.haha] ¦ ¦ ¦ ¦ 'xxxxxxxxxx…'
-      | [test.haha] ¦ ¦ ¦ ]
-      | [test.haha] ¦ ¦ }
-      | [test.haha] ¦ }
-      | [test.haha] }
-      | 
-    `));
+    assertEqual(logs, [
+      `[test.launch] {}\n`,
+      String[cl.baseline](`
+        | [test.haha] {
+        | [test.haha] ¦ x ---: { y: 'xxxxxxxxxxxxxxxxxxxxxxxx…' },
+        | [test.haha] ¦ xx --: 'xxxxxxxxxxxxxxxxxxxxxxxx…',
+        | [test.haha] ¦ xxx -: 'BigInt(...)',
+        | [test.haha] ¦ xxxxx: { y: 'xxxxxxxxxxxxxxxxxxxxxxxx…' },
+        | [test.haha] ¦ a ---: { b: { c: 'xxxxxxxxxxxxxxxxxxxxxxxx…' } },
+        | [test.haha] ¦ h ---: { i: { j: [ 'xxxxxxxxxxxxxxxxxxxxxxxx…' ] } },
+        | [test.haha] ¦ lines: """
+        | [test.haha] ¦ ¦ | xxx
+        | [test.haha] ¦ ¦ | xxx
+        | [test.haha] ¦ ¦ | xxx
+        | [test.haha] ¦ """
+        | [test.haha] }
+        | 
+      `),
+      [ cmpReg, /\[test.accept\] \{ ms: [0-9]+ \}\n/ ]
+    ]);
     
   }}
   
