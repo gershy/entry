@@ -1,6 +1,6 @@
 {
   "name": "@gershy/entry",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "author": "Gershom Maes",
   "description": "TODO",
   "keywords": [
@@ -23,10 +23,10 @@
     "@gershy/clearing": "^0.0.48"
   },
   "devDependencies": {
-    "@gershy/util-codec-parse": "^0.0.16",
     "@types/node": "^24.10.1"
   },
   "dependencies": {
+    "@gershy/util-codec-parse": "^0.0.16",
     "@gershy/logger": "^0.0.16"
   },
   "exports": {
