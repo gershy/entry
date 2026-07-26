@@ -314,7 +314,7 @@ export const entry = <Cdc extends Codec.Reg>(inp: EntryInp<Cdc>) => {
       stringFormat = 'multiline',
       objDepth = 7,
       maxLineLen = 150,
-      maxStrLen = 500,
+      maxStrLen = 750,
       indentSize = 2,
       ansi: useAnsi = true
     } = formatInpRaw;
@@ -359,7 +359,6 @@ export const entry = <Cdc extends Codec.Reg>(inp: EntryInp<Cdc>) => {
       write(content[indent](`[${(domain as any).$}] `) + '\n');
       
     });
-    
     
   })();
   return logger.scope(inp.name ?? '', {}, async logger => {
