@@ -1,6 +1,6 @@
 {
   "name": "@gershy/entry",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "author": "Gershom Maes",
   "description": "TODO",
   "keywords": [
@@ -20,14 +20,14 @@
   ],
   "license": "ISC",
   "peerDependencies": {
-    "@gershy/clearing": "^0.0.53"
+    "@gershy/clearing": "^0.0.54"
   },
   "devDependencies": {
     "@types/node": "^24.10.1"
   },
   "dependencies": {
-    "@gershy/util-codec-parse": "^0.0.21",
-    "@gershy/logger": "^0.0.21"
+    "@gershy/util-codec-parse": "^0.0.22",
+    "@gershy/logger": "^0.0.22"
   },
   "exports": {
     ".": {
