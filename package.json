@@ -1,6 +1,6 @@
 {
   "name": "@gershy/entry",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "author": "Gershom Maes",
   "description": "TODO",
   "keywords": [
@@ -8,26 +8,26 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gershy/entry.git"
+    "url": "git+https://github.com/gershyNpm/entry.git"
   },
   "bugs": {
-    "url": "https://github.com/gershy/entry/issues"
+    "url": "https://github.com/gershyNpm/entry/issues"
   },
-  "homepage": "https://github.com/gershy/entry#readme",
+  "homepage": "https://github.com/gershyNpm/entry#readme",
   "type": "module",
   "files": [
     "cmp"
   ],
   "license": "ISC",
   "peerDependencies": {
-    "@gershy/clearing": "^0.0.51"
+    "@gershy/clearing": "^0.0.52"
   },
   "devDependencies": {
     "@types/node": "^24.10.1"
   },
   "dependencies": {
-    "@gershy/util-codec-parse": "^0.0.19",
-    "@gershy/logger": "^0.0.19"
+    "@gershy/util-codec-parse": "^0.0.20",
+    "@gershy/logger": "^0.0.20"
   },
   "exports": {
     ".": {

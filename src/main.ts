@@ -292,11 +292,18 @@ export const entry = <Cdc extends Codec.Reg>(inp: EntryInp<Cdc>) => {
     process.on('uncaughtException', topLevelHandler);
     process.on('unhandledRejection', topLevelHandler);
     
-    const ignoredWarningCodes = new Set<string>([ 'undici-ws'[cl.upper]() ]);
+    const ignoredWarningCodes = new Set<string>([
+      'undici-ws'[cl.upper](), // Experimental websocket
+      'dep0190'[cl.upper]()    // Child process arguments with shell option
+    ]);
     const origEmitWarning: any = process.emitWarning;
-    (process as any).emitWarning = (...inp: [ string, { code: string } ]) => {
-      if (ignoredWarningCodes.has(inp[1]?.code)) return;
+    (process as any).emitWarning = (...inp: any[]) => {
+      
+      const code = inp[1]?.code ?? inp[2] ?? inp[1] ?? null;
+      
+      if (ignoredWarningCodes.has(code)) return;
       origEmitWarning.call(process, ...inp);
+      
     };
     
   })();
