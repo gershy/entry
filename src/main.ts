@@ -277,8 +277,10 @@ export type EntryInp<Cdc extends Codec.Reg> = {
 };
 export const entry = <Cdc extends Codec.Reg>(inp: EntryInp<Cdc>) => {
   
+  const { topLevelHandling = true, log: logInp = {}, name = '', codec = null, inp: codecInput = {}, fn } = inp;
+  
   // Handle top-level errors and warnings
-  if (inp.topLevelHandling ?? true) (() => {
+  if (topLevelHandling) (() => {
     
     if (process[Symbol.for('@gershy/entry/dedup')]) throw Error('entry conflict')[cl.mod]({ note: 'The @gershy/entry `entry` function should only be called once with { topLevelHandling: true } per process' });
     process[Symbol.for('@gershy/entry/dedup')] = true;
@@ -310,7 +312,6 @@ export const entry = <Cdc extends Codec.Reg>(inp: EntryInp<Cdc>) => {
   
   const logger = (() => {
     
-    const logInp = inp.log ?? {};
     const {
       write = globalThis['cons' + 'ole'].log,
       filter = () => true,
@@ -368,24 +369,23 @@ export const entry = <Cdc extends Codec.Reg>(inp: EntryInp<Cdc>) => {
     });
     
   })();
-  return logger.scope(inp.name ?? '', {}, async logger => {
+  return logger.scope(name, {}, async logger => {
     
-    const codec = inp.codec;
-    const parsedInp = !codec ? null : logger.scope('inp', {}, logger => {
+    const parsedInp = codec && logger.scope('inp', {}, logger => {
       
       const rawInp = process.argv.filter(v => v[0] === '{')
         .map(v => eval(`(${v})`))
         .reduce((m, v) => m[cl.merge](v), {});
       
       const codecInp = {}
-        [cl.merge](inp.inp ?? {})
+        [cl.merge](codecInput)
         [cl.merge](rawInp);
       return codecParse(codec!, codecInp);
       
     });
     
-    return inp.fn(logger, parsedInp as any);
+    return fn(logger, parsedInp as any);
     
-  }).finally(() => (inp.topLevelHandling ?? true) && process.exit(0)); // TODO: detect and report open async processes??
+  }).finally(() => topLevelHandling && process.exit(0)); // TODO: detect and report open async processes??
   
 };
