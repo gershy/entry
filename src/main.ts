@@ -371,16 +371,21 @@ export const entry = <Cdc extends Codec.Reg>(inp: EntryInp<Cdc>) => {
   })();
   return logger.scope(name, {}, async logger => {
     
+    const argv = process.argv.filter(v => v[0] === '{');
     const parsedInp = codec && logger.scope('inp', {}, logger => {
       
-      const rawInp = process.argv.filter(v => v[0] === '{')
-        .map(v => eval(`(${v})`))
-        .reduce((m, v) => m[cl.merge](v), {});
-      
-      const codecInp = {}
-        [cl.merge](codecInput)
-        [cl.merge](rawInp);
-      return codecParse(codec!, codecInp);
+      try {
+        const rawInp = argv
+          .map(v => eval(`(${v})`))
+          .reduce((m, v) => m[cl.merge](v), {});
+        
+        const codecInp = {}
+          [cl.merge](codecInput)
+          [cl.merge](rawInp);
+        return codecParse(codec!, codecInp);
+      } catch (err: any) {
+        throw err[cl.mod]({ syntaxError: argv })
+      }
       
     });
     
